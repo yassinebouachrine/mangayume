@@ -1288,6 +1288,18 @@ def create_app():
             return jsonify({'error': str(e)}), 500
 
 
+    # ══════════════════════════════════════════
+    # COOKIES CONSENT
+    # ══════════════════════════════════════════
+    @app.route('/api/cookies/accept', methods=['POST'])
+    def accept_cookies():
+        try:
+            data = request.get_json(force=True, silent=True) or {}
+            # Log cookie consent (optional)
+            return jsonify({'accepted': True})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
 
 
     # ══════════════════════════════════════════
