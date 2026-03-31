@@ -1,16 +1,160 @@
-<!doctype html>
-<html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mangayume</title>
-    <meta
-      name="description"
-      content="Mangayume, plateforme moderne de lecture et de gestion de mangas."
-    />
-  </head>
-  <body class="bg-slate-950 text-white">
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manga Yume — Read Your Dreams</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Righteous&family=Noto+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar" id="navbar">
+    <div class="nav-container">
+      <a class="logo" href="#" onclick="App.go('home')">
+        <img src="assets/logo.png" alt="Manga Yume" class="logo-img">
+        <div class="logo-text">
+          <span class="logo-title">MANGA YUME</span>
+          <span class="logo-sub">〜 Read Your Dreams 〜</span>
+        </div>
+      </a>
+      <div class="search-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" data-i18n-ph="search_placeholder" placeholder="Rechercher manga, manhwa, manhua..." autocomplete="off">
+        <div class="search-dd" id="searchDD"></div>
+      </div>
+      <nav class="nav-links">
+        <a href="#" onclick="App.go('home')" data-p="home"><i class="fas fa-home"></i> <span data-i18n="nav_home">Accueil</span></a>
+        <a href="#" onclick="App.go('browse')" data-p="browse"><i class="fas fa-compass"></i> <span data-i18n="nav_browse">Explorer</span></a>
+        <a href="#" onclick="App.go('latest')" data-p="latest"><i class="fas fa-bolt"></i> <span data-i18n="nav_latest">Récents</span></a>
+
+        <!-- Language selector -->
+        <div class="lang-selector">
+          <button class="lang-btn" onclick="App.toggleLangMenu()" id="langBtn">
+            <i class="fas fa-globe"></i>
+            <span id="currentLangLabel">FR</span>
+          </button>
+          <div class="lang-dd" id="langDD">
+            <button onclick="App.setLang('fr')" class="lang-opt"><span class="lang-flag">🇫🇷</span> Français</button>
+            <button onclick="App.setLang('en')" class="lang-opt"><span class="lang-flag">🇬🇧</span> English</button>
+            <button onclick="App.setLang('ar')" class="lang-opt"><span class="lang-flag">🇸🇦</span> العربية</button>
+          </div>
+        </div>
+
+        <button class="theme-btn" id="themeBtn" onclick="App.toggleTheme()" title="Theme">
+          <i class="fas fa-moon" id="themeIcon"></i>
+        </button>
+        <div id="navUser"></div>
+      </nav>
+      <button class="mob-btn" id="mobBtn"><i class="fas fa-bars"></i></button>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-head">
+      <img src="assets/logo.png" alt="" class="sb-logo">
+      <div>
+        <div class="sb-title">MANGA YUME</div>
+        <div class="sb-sub">Read Your Dreams</div>
+      </div>
+      <button onclick="App.closeSB()"><i class="fas fa-times"></i></button>
+    </div>
+    <nav id="sbNav"></nav>
+  </aside>
+  <div class="sb-overlay" id="sbOverlay" onclick="App.closeSB()"></div>
+
+  <!-- MAIN -->
+  <main id="app"></main>
+
+  <!-- AUTH MODAL -->
+  <div class="modal-bg" id="authBg">
+    <div class="modal-box">
+      <button class="modal-x" onclick="App.closeAuth()"><i class="fas fa-times"></i></button>
+      <div class="modal-brand">
+        <img src="assets/logo.png" alt="" class="modal-logo">
+        <h2 class="modal-title">MANGA YUME</h2>
+        <p class="modal-sub">〜 Read Your Dreams 〜</p>
+      </div>
+      <div class="auth-tabs">
+        <button class="at active" data-t="login" onclick="App.authTab('login')" data-i18n="auth_login">Connexion</button>
+        <button class="at" data-t="register" onclick="App.authTab('register')" data-i18n="auth_register">Inscription</button>
+      </div>
+      <form id="loginForm" class="af" onsubmit="App.login(event)">
+        <div class="fi"><label><i class="fas fa-envelope"></i> <span data-i18n="auth_email">Email</span></label>
+          <input type="email" id="lEmail" required placeholder="votre@email.com"></div>
+        <div class="fi"><label><i class="fas fa-lock"></i> <span data-i18n="auth_password">Mot de passe</span></label>
+          <input type="password" id="lPass" required placeholder="••••••"></div>
+        <p class="ferr" id="lErr"></p>
+        <button type="submit" class="btn-pri full"><i class="fas fa-sign-in-alt"></i> <span data-i18n="auth_login_btn">Se connecter</span></button>
+      </form>
+      <form id="regForm" class="af hidden" onsubmit="App.register(event)">
+        <div class="fi"><label><i class="fas fa-user"></i> <span data-i18n="auth_username">Pseudo</span></label>
+          <input type="text" id="rUser" required placeholder="MonPseudo" minlength="3"></div>
+        <div class="fi"><label><i class="fas fa-envelope"></i> <span data-i18n="auth_email">Email</span></label>
+          <input type="email" id="rEmail" required placeholder="votre@email.com"></div>
+        <div class="fi"><label><i class="fas fa-lock"></i> <span data-i18n="auth_password">Mot de passe</span></label>
+          <input type="password" id="rPass" required placeholder="••••••" minlength="6"></div>
+        <p class="ferr" id="rErr"></p>
+        <button type="submit" class="btn-pri full"><i class="fas fa-user-plus"></i> <span data-i18n="auth_register_btn">S'inscrire</span></button>
+      </form>
+    </div>
+  </div>
+
+  <!-- READER -->
+  <div class="reader" id="reader">
+    <div class="r-bar" id="rBar">
+      <button onclick="App.closeReader()"><i class="fas fa-arrow-left"></i></button>
+      <div class="r-info"><span id="rManga"></span><span id="rCh"></span></div>
+      <div class="r-ctrl">
+        <button id="rPrev" onclick="App.prevCh()"><i class="fas fa-step-backward"></i></button>
+        <span id="rPage">1/1</span>
+        <button id="rNext" onclick="App.nextCh()"><i class="fas fa-step-forward"></i></button>
+      </div>
+    </div>
+    <div class="r-body" id="rBody"></div>
+  </div>
+
+  <!-- TOASTS -->
+  <div class="toasts" id="toasts"></div>
+
+  <!-- SCROLL TOP -->
+  <button class="scroll-top" id="scrollTop" onclick="scrollTo({top:0,behavior:'smooth'})">
+    <i class="fas fa-chevron-up"></i>
+  </button>
+
+  <!-- FOOTER -->
+  <footer class="footer" id="footer">
+    <div class="ft-inner">
+      <div class="ft-brand">
+        <div class="ft-logo-wrap">
+          <img src="assets/logo.png" alt="" class="ft-logo">
+        </div>
+        <h3 class="ft-title">MANGA YUME</h3>
+        <p class="ft-sub">〜 Read Your Dreams 〜</p>
+        <p class="ft-desc" data-i18n="footer_desc">Votre plateforme de lecture de manga, manhwa et manhua préférée.</p>
+      </div>
+      <div class="ft-links">
+        <h4 data-i18n="nav_navigation">Navigation</h4>
+        <a href="#" onclick="App.go('home')" data-i18n="nav_home">Accueil</a>
+        <a href="#" onclick="App.go('browse')" data-i18n="nav_browse">Explorer</a>
+        <a href="#" onclick="App.go('latest')" data-i18n="nav_latest">Récents</a>
+      </div>
+      <div class="ft-links">
+        <h4 data-i18n="footer_popular_genres">Genres Populaires</h4>
+        <a href="#" onclick="App.go('browse',{genres:'action'})">Action</a>
+        <a href="#" onclick="App.go('browse',{genres:'fantasy'})">Fantasy</a>
+        <a href="#" onclick="App.go('browse',{genres:'romance'})">Romance</a>
+        <a href="#" onclick="App.go('browse',{genres:'isekai'})">Isekai</a>
+      </div>
+    </div>
+    <div class="ft-bottom" data-i18n="footer_copy">© 2024 Manga Yume — Read Your Dreams. Tous droits réservés.</div>
+  </footer>
+
+  <script src="js/app.js"></script>
+</body>
 </html>
