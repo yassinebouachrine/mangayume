@@ -253,3 +253,39 @@ class Rating(db.Model):
     __table_args__ = (
         db.UniqueConstraint('user_id', 'manga_id', name='uq_user_manga_rating'),
     )
+
+
+class Message(db.Model):
+    __tablename__ = 'message'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    subject = db.Column(db.String(300), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    admin_reply = db.Column(db.Text, default='')
+    replied_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('messages', lazy='dynamic'))
+
+    def to_dict(self):
+        u = User.query.get(self.user_id)
+        return {
+            'id': self.id,
+            'user': u.to_dict() if u else None,
+            'subject': self.subject,
+            'content': self.content,
+            'is_read': self.is_read,
+            'admin_reply': self.admin_reply or '',
+            'replied_at': self.replied_at.isoformat() if self.replied_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class VisitLog(db.Model):
+    __tablename__ = 'visit_log'
+    id = db.Column(db.Integer, primary_key=True)
+    ip = db.Column(db.String(50), default='')
+    user_id = db.Column(db.Integer, nullable=True)
+    path = db.Column(db.String(500), default='/')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

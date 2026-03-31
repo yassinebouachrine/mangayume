@@ -18,7 +18,7 @@ from sqlalchemy import or_
 from config import Config
 from models import (
     db, User, Genre, Manga, Chapter, Comment, CommentLike, Rating,
-    manga_genres, user_favorites
+    manga_genres, user_favorites, Message
 )
 
 
@@ -912,6 +912,208 @@ def create_app():
             db.session.rollback()
             traceback.print_exc()
             return jsonify({'error': str(e)}), 500
+
+
+
+    # ══════════════════════════════════════════
+    # MESSAGES / CONTACT
+    # ══════════════════════════════════════════
+    @app.route('/api/messages', methods=['POST'])
+    def send_message():
+        user, err = check_user()
+        if err:
+            return err
+        try:
+            data = request.get_json(force=True, silent=True) or {}
+            subject = (data.get('subject') or '').strip()
+            content = (data.get('content') or '').strip()
+
+            if not subject or len(subject) < 3:
+                return jsonify({'error': 'Sujet requis (3 car. min)'}), 400
+            if not content or len(content) < 10:
+                return jsonify({'error': 'Message requis (10 car. min)'}), 400
+
+            msg = Message(user_id=user.id, subject=subject, content=content)
+            db.session.add(msg)
+            db.session.commit()
+            return jsonify(msg.to_dict()), 201
+        except Exception as e:
+            db.session.rollback()
+            traceback.print_exc()
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/messages/my', methods=['GET'])
+    def get_my_messages():
+        user, err = check_user()
+        if err:
+            return err
+        try:
+            msgs = Message.query.filter_by(user_id=user.id)\
+                .order_by(Message.created_at.desc()).all()
+            return jsonify([m.to_dict() for m in msgs])
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/messages/all', methods=['GET'])
+    def get_all_messages():
+        admin, err = check_admin()
+        if err:
+            return err
+        try:
+            page = request.args.get('page', 1, type=int)
+            limit = request.args.get('limit', 20, type=int)
+            status = request.args.get('status', '')
+
+            query = Message.query
+
+            if status == 'unread':
+                query = query.filter_by(is_read=False)
+            elif status == 'read':
+                query = query.filter_by(is_read=True)
+            elif status == 'replied':
+                query = query.filter(Message.admin_reply != '', Message.admin_reply != None)
+            elif status == 'unreplied':
+                query = query.filter((Message.admin_reply == '') | (Message.admin_reply == None))
+
+            query = query.order_by(Message.created_at.desc())
+            total = query.count()
+            msgs = query.offset((page - 1) * limit).limit(limit).all()
+
+            return jsonify({
+                'messages': [m.to_dict() for m in msgs],
+                'pagination': {
+                    'current': page,
+                    'pages': max(1, -(-total // limit)),
+                    'total': total
+                }
+            })
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/messages/<int:msg_id>/reply', methods=['POST'])
+    def reply_message(msg_id):
+        admin, err = check_admin()
+        if err:
+            return err
+        try:
+            data = request.get_json(force=True, silent=True) or {}
+            reply = (data.get('reply') or '').strip()
+            if not reply:
+                return jsonify({'error': 'Réponse requise'}), 400
+
+            msg = Message.query.get(msg_id)
+            if not msg:
+                return jsonify({'error': 'Message non trouvé'}), 404
+
+            msg.admin_reply = reply
+            msg.is_read = True
+            msg.replied_at = datetime.utcnow()
+            db.session.commit()
+            return jsonify(msg.to_dict())
+        except Exception as e:
+            db.session.rollback()
+            traceback.print_exc()
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/messages/<int:msg_id>/read', methods=['POST'])
+    def mark_read(msg_id):
+        admin, err = check_admin()
+        if err:
+            return err
+        try:
+            msg = Message.query.get(msg_id)
+            if not msg:
+                return jsonify({'error': 'Non trouvé'}), 404
+            msg.is_read = True
+            db.session.commit()
+            return jsonify({'ok': True})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/messages/<int:msg_id>', methods=['DELETE'])
+    def delete_message(msg_id):
+        admin, err = check_admin()
+        if err:
+            return err
+        try:
+            msg = Message.query.get(msg_id)
+            if not msg:
+                return jsonify({'error': 'Non trouvé'}), 404
+            db.session.delete(msg)
+            db.session.commit()
+            return jsonify({'message': 'Supprimé'})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+    # ══════════════════════════════════════════
+    # STATS / DASHBOARD
+    # ══════════════════════════════════════════
+    @app.route('/api/stats', methods=['GET'])
+    def get_stats():
+        admin, err = check_admin()
+        if err:
+            return err
+        try:
+            total_users = User.query.count()
+            total_mangas = Manga.query.count()
+            total_chapters = Chapter.query.count()
+            total_comments = Comment.query.filter_by(is_deleted=False).count()
+            total_views = db.session.query(db.func.sum(Manga.views)).scalar() or 0
+            total_messages = Message.query.count()
+            unread_messages = Message.query.filter_by(is_read=False).count()
+
+            # Manga par type
+            type_stats = db.session.query(
+                Manga.type, db.func.count(Manga.id)
+            ).group_by(Manga.type).all()
+
+            # Manga par statut
+            status_stats = db.session.query(
+                Manga.status, db.func.count(Manga.id)
+            ).group_by(Manga.status).all()
+
+            # Manga par genre (top 15)
+            genre_stats = []
+            for g in Genre.query.all():
+                count = db.session.query(manga_genres).filter(
+                    manga_genres.c.genre_id == g.id
+                ).count()
+                if count > 0:
+                    genre_stats.append({'name': g.name, 'slug': g.slug, 'count': count})
+            genre_stats.sort(key=lambda x: x['count'], reverse=True)
+
+            # Top 5 mangas par vues
+            top_mangas = Manga.query.order_by(Manga.views.desc()).limit(5).all()
+
+            # Derniers inscrits
+            recent_users = User.query.order_by(User.created_at.desc()).limit(5).all()
+
+            return jsonify({
+                'total_users': total_users,
+                'total_mangas': total_mangas,
+                'total_chapters': total_chapters,
+                'total_comments': total_comments,
+                'total_views': total_views,
+                'total_messages': total_messages,
+                'unread_messages': unread_messages,
+                'type_stats': [{'type': t, 'count': c} for t, c in type_stats],
+                'status_stats': [{'status': s, 'count': c} for s, c in status_stats],
+                'genre_stats': genre_stats[:15],
+                'top_mangas': [{'id': m.id, 'title': m.title, 'views': m.views, 'cover_image': m.cover_image} for m in top_mangas],
+                'recent_users': [u.to_dict() for u in recent_users]
+            })
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'error': str(e)}), 500
+
+
+
+
+
 
     # ══════════════════════════════════════════
     # FRONTEND FALLBACK
