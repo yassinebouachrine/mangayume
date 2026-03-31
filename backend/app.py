@@ -1049,34 +1049,203 @@ def create_app():
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
 
+
+
     # ══════════════════════════════════════════
-    # STATS / DASHBOARD
+    # USER PROFILE MANAGEMENT
     # ══════════════════════════════════════════
-    @app.route('/api/stats', methods=['GET'])
-    def get_stats():
-        admin, err = check_admin()
+    @app.route('/api/auth/update-profile', methods=['PUT'])
+    def update_own_profile():
+        user, err = check_user()
         if err:
             return err
         try:
+            data = request.get_json(force=True, silent=True) or {}
+
+            new_username = (data.get('username') or '').strip()
+            new_password = data.get('password') or ''
+            current_password = data.get('current_password') or ''
+
+            # Verify current password
+            if not current_password:
+                return jsonify({'error': 'Mot de passe actuel requis'}), 400
+            if not user.check_password(current_password):
+                return jsonify({'error': 'Mot de passe actuel incorrect'}), 403
+
+            changed = []
+
+            if new_username and new_username != user.username:
+                if len(new_username) < 3:
+                    return jsonify({'error': 'Pseudo: 3 caractères minimum'}), 400
+                existing = User.query.filter(
+                    User.username == new_username,
+                    User.id != user.id
+                ).first()
+                if existing:
+                    return jsonify({'error': 'Ce pseudo est déjà pris'}), 400
+                user.username = new_username
+                changed.append('username')
+
+            if new_password:
+                if len(new_password) < 6:
+                    return jsonify({'error': 'Nouveau mot de passe: 6 caractères minimum'}), 400
+                user.set_password(new_password)
+                changed.append('password')
+
+            if not changed:
+                return jsonify({'error': 'Aucune modification'}), 400
+
+            db.session.commit()
+
+            return jsonify({
+                'user': user.to_dict(include_email=True),
+                'changed': changed
+            })
+        except Exception as e:
+            db.session.rollback()
+            traceback.print_exc()
+            return jsonify({'error': str(e)}), 500
+
+    # ══════════════════════════════════════════
+    # ADMIN — USER MANAGEMENT
+    # ══════════════════════════════════════════
+    @app.route('/api/admin/users', methods=['GET'])
+    def admin_get_users():
+        admin_user, err = check_admin()
+        if err:
+            return err
+        try:
+            page = request.args.get('page', 1, type=int)
+            limit = request.args.get('limit', 20, type=int)
+            search = request.args.get('search', '').strip()
+
+            query = User.query
+
+            if search:
+                term = f"%{search}%"
+                query = query.filter(or_(
+                    User.username.ilike(term),
+                    User.email.ilike(term),
+                    db.cast(User.id, db.String).ilike(term)
+                ))
+
+            query = query.order_by(User.created_at.desc())
+            total = query.count()
+            users = query.offset((page - 1) * limit).limit(limit).all()
+
+            result = []
+            for u in users:
+                ud = u.to_dict(include_email=True)
+                ud['comments_count'] = Comment.query.filter_by(user_id=u.id, is_deleted=False).count()
+                ud['favorites_count'] = len(u.favorites)
+                result.append(ud)
+
+            return jsonify({
+                'users': result,
+                'pagination': {
+                    'current': page,
+                    'pages': max(1, -(-total // limit)),
+                    'total': total
+                }
+            })
+        except Exception as e:
+            traceback.print_exc()
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
+    def admin_update_user(user_id):
+        admin_user, err = check_admin()
+        if err:
+            return err
+        try:
+            target = User.query.get(user_id)
+            if not target:
+                return jsonify({'error': 'Utilisateur non trouvé'}), 404
+
+            data = request.get_json(force=True, silent=True) or {}
+
+            new_username = (data.get('username') or '').strip()
+            new_password = data.get('password') or ''
+            new_role = data.get('role') or ''
+
+            if new_username and new_username != target.username:
+                if len(new_username) < 3:
+                    return jsonify({'error': 'Pseudo: 3 caractères minimum'}), 400
+                existing = User.query.filter(
+                    User.username == new_username,
+                    User.id != target.id
+                ).first()
+                if existing:
+                    return jsonify({'error': 'Ce pseudo est déjà pris'}), 400
+                target.username = new_username
+
+            if new_password and len(new_password) >= 6:
+                target.set_password(new_password)
+
+            if new_role in ('user', 'admin'):
+                target.role = new_role
+
+            db.session.commit()
+
+            ud = target.to_dict(include_email=True)
+            ud['comments_count'] = Comment.query.filter_by(user_id=target.id, is_deleted=False).count()
+            return jsonify(ud)
+        except Exception as e:
+            db.session.rollback()
+            traceback.print_exc()
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+    def admin_delete_user(user_id):
+        admin_user, err = check_admin()
+        if err:
+            return err
+        try:
+            target = User.query.get(user_id)
+            if not target:
+                return jsonify({'error': 'Utilisateur non trouvé'}), 404
+            if target.id == admin_user.id:
+                return jsonify({'error': 'Impossible de supprimer votre propre compte'}), 400
+            if target.role == 'admin':
+                return jsonify({'error': 'Impossible de supprimer un autre admin'}), 400
+
+            db.session.delete(target)
+            db.session.commit()
+            return jsonify({'message': 'Utilisateur supprimé'})
+        except Exception as e:
+            db.session.rollback()
+            traceback.print_exc()
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/stats', methods=['GET'])
+    def get_stats():
+        admin_user, err = check_admin()
+        if err:
+            return err
+        try:
+            from sqlalchemy import func as sqlfunc
+
             total_users = User.query.count()
             total_mangas = Manga.query.count()
             total_chapters = Chapter.query.count()
             total_comments = Comment.query.filter_by(is_deleted=False).count()
-            total_views = db.session.query(db.func.sum(Manga.views)).scalar() or 0
+            total_views = db.session.query(sqlfunc.coalesce(sqlfunc.sum(Manga.views), 0)).scalar()
             total_messages = Message.query.count()
             unread_messages = Message.query.filter_by(is_read=False).count()
+            total_favorites = db.session.query(user_favorites).count()
 
-            # Manga par type
+            avg_rating = db.session.query(
+                sqlfunc.coalesce(sqlfunc.avg(Rating.score), 0)
+            ).scalar()
+
             type_stats = db.session.query(
-                Manga.type, db.func.count(Manga.id)
+                Manga.type, sqlfunc.count(Manga.id)
             ).group_by(Manga.type).all()
 
-            # Manga par statut
             status_stats = db.session.query(
-                Manga.status, db.func.count(Manga.id)
+                Manga.status, sqlfunc.count(Manga.id)
             ).group_by(Manga.status).all()
 
-            # Manga par genre (top 15)
             genre_stats = []
             for g in Genre.query.all():
                 count = db.session.query(manga_genres).filter(
@@ -1086,31 +1255,37 @@ def create_app():
                     genre_stats.append({'name': g.name, 'slug': g.slug, 'count': count})
             genre_stats.sort(key=lambda x: x['count'], reverse=True)
 
-            # Top 5 mangas par vues
-            top_mangas = Manga.query.order_by(Manga.views.desc()).limit(5).all()
+            top_mangas = Manga.query.order_by(Manga.views.desc()).limit(8).all()
+            recent_users = User.query.order_by(User.created_at.desc()).limit(8).all()
 
-            # Derniers inscrits
-            recent_users = User.query.order_by(User.created_at.desc()).limit(5).all()
+            admin_count = User.query.filter_by(role='admin').count()
+            user_count = User.query.filter_by(role='user').count()
 
             return jsonify({
                 'total_users': total_users,
+                'admin_count': admin_count,
+                'user_count': user_count,
                 'total_mangas': total_mangas,
                 'total_chapters': total_chapters,
                 'total_comments': total_comments,
                 'total_views': total_views,
                 'total_messages': total_messages,
                 'unread_messages': unread_messages,
+                'total_favorites': total_favorites,
+                'avg_rating': round(float(avg_rating), 1),
                 'type_stats': [{'type': t, 'count': c} for t, c in type_stats],
                 'status_stats': [{'status': s, 'count': c} for s, c in status_stats],
-                'genre_stats': genre_stats[:15],
-                'top_mangas': [{'id': m.id, 'title': m.title, 'views': m.views, 'cover_image': m.cover_image} for m in top_mangas],
-                'recent_users': [u.to_dict() for u in recent_users]
+                'genre_stats': genre_stats[:20],
+                'top_mangas': [{
+                    'id': m.id, 'title': m.title,
+                    'views': m.views, 'cover_image': m.cover_image,
+                    'type': m.type, 'rating': m.rating_average
+                } for m in top_mangas],
+                'recent_users': [u.to_dict(include_email=True) for u in recent_users]
             })
         except Exception as e:
             traceback.print_exc()
             return jsonify({'error': str(e)}), 500
-
-
 
 
 
