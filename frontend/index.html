@@ -15,8 +15,8 @@
   <!-- NAVBAR -->
   <header class="navbar" id="navbar">
     <div class="nav-container">
-      <a class="logo" href="#" onclick="App.go('home')">
-        <img src="assets/logo.png" alt="Manga Yume" class="logo-img">
+      <a class="logo" href="/" onclick="App.go('home');return false">
+        <img src="/assets/logo.png" alt="Manga Yume" class="logo-img">
         <div class="logo-text">
           <span class="logo-title">MANGA YUME</span>
           <span class="logo-sub">〜 Read Your Dreams 〜</span>
@@ -28,9 +28,9 @@
         <div class="search-dd" id="searchDD"></div>
       </div>
       <nav class="nav-links">
-        <a href="#" onclick="App.go('home')" data-p="home"><i class="fas fa-home"></i> <span data-i18n="nav_home">Accueil</span></a>
-        <a href="#" onclick="App.go('browse')" data-p="browse"><i class="fas fa-compass"></i> <span data-i18n="nav_browse">Explorer</span></a>
-        <a href="#" onclick="App.go('latest')" data-p="latest"><i class="fas fa-bolt"></i> <span data-i18n="nav_latest">Récents</span></a>
+        <a href="/" onclick="App.go('home');return false" data-p="home"><i class="fas fa-home"></i> <span data-i18n="nav_home">Accueil</span></a>
+        <a href="/browse" onclick="App.go('browse');return false" data-p="browse"><i class="fas fa-compass"></i> <span data-i18n="nav_browse">Explorer</span></a>
+        <a href="/latest" onclick="App.go('latest');return false" data-p="latest"><i class="fas fa-bolt"></i> <span data-i18n="nav_latest">Récents</span></a>
 
         <!-- Language selector -->
         <div class="lang-selector">
@@ -53,7 +53,6 @@
       <button class="mob-btn" id="mobBtn"><i class="fas fa-bars"></i></button>
     </div>
   </header>
-
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sb-head">
@@ -123,7 +122,7 @@
   <div class="toasts" id="toasts"></div>
 
   <!-- SCROLL TOP -->
-  <button class="scroll-top" id="scrollTop" onclick="scrollTo({top:0,behavior:'smooth'})">
+  <button id="scrollTop" class="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
     <i class="fas fa-chevron-up"></i>
   </button>
 
@@ -132,7 +131,7 @@
     <div class="ft-inner">
       <div class="ft-brand">
         <div class="ft-logo-wrap">
-          <img src="assets/logo.png" alt="" class="ft-logo">
+          <img src="/assets/logo.png" alt="" class="ft-logo">
         </div>
         <h3 class="ft-title">MANGA YUME</h3>
         <p class="ft-sub">〜 Read Your Dreams 〜</p>
@@ -140,16 +139,20 @@
       </div>
       <div class="ft-links">
         <h4 data-i18n="nav_navigation">Navigation</h4>
-        <a href="#" onclick="App.go('home')" data-i18n="nav_home">Accueil</a>
-        <a href="#" onclick="App.go('browse')" data-i18n="nav_browse">Explorer</a>
-        <a href="#" onclick="App.go('latest')" data-i18n="nav_latest">Récents</a>
+        <a href="/" onclick="App.go('home');return false"><i class="fas fa-home"></i> <span data-i18n="nav_home">Accueil</span></a>
+        <a href="/browse" onclick="App.go('browse');return false"><i class="fas fa-compass"></i> <span data-i18n="nav_browse">Explorer</span></a>
+        <a href="/latest" onclick="App.go('latest');return false"><i class="fas fa-bolt"></i> <span data-i18n="nav_latest">Récents</span></a>
+        <a href="/favorites" onclick="App.go('favorites');return false"><i class="fas fa-heart"></i> <span data-i18n="nav_favorites">Favoris</span></a>
+        <a href="/about" onclick="App.go('about');return false"><i class="fas fa-info-circle"></i> <span data-i18n="about_title">À propos</span></a>
+        <a href="/contact" onclick="App.go('contact');return false"><i class="fas fa-envelope"></i> <span data-i18n="contact_title">Contact</span></a>
+ 
       </div>
       <div class="ft-links">
         <h4 data-i18n="footer_popular_genres">Genres Populaires</h4>
-        <a href="#" onclick="App.go('browse',{genres:'action'})">Action</a>
-        <a href="#" onclick="App.go('browse',{genres:'fantasy'})">Fantasy</a>
-        <a href="#" onclick="App.go('browse',{genres:'romance'})">Romance</a>
-        <a href="#" onclick="App.go('browse',{genres:'isekai'})">Isekai</a>
+        <a href="/browse?genres=action" onclick="App.go('browse',{genres:'action'});return false">Action</a>
+        <a href="/browse?genres=fantasy" onclick="App.go('browse',{genres:'fantasy'});return false">Fantasy</a>
+        <a href="/browse?genres=romance" onclick="App.go('browse',{genres:'romance'});return false">Romance</a>
+        <a href="/browse?genres=isekai" onclick="App.go('browse',{genres:'isekai'});return false">Isekai</a>
       </div>
     </div>
     <div class="ft-bottom" data-i18n="footer_copy">© 2024 Manga Yume — Read Your Dreams. Tous droits réservés.</div>
