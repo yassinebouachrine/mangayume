@@ -23,7 +23,7 @@ from models import (
 
 
 def create_app():
-    app = app = Flask(__name__)
+    app = Flask(__name__)
     app.config.from_object(Config)
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
     app.config['JWT_TOKEN_LOCATION'] = ['headers']

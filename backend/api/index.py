@@ -1,6 +1,7 @@
 import sys
 import os
 
+# Ajouter le dossier parent au path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 os.environ.setdefault('DATABASE_URL',
@@ -13,4 +14,6 @@ os.environ.setdefault('JWT_SECRET_KEY', 'mangayume-jwt-2026')
 from app import create_app
 
 app = create_app()
-handler = app
+
+# ⚠️ Vercel cherche exactement "app" comme variable WSGI
+# Pas besoin de "handler"
