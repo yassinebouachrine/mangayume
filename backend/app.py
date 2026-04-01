@@ -23,7 +23,7 @@ from models import (
 
 
 def create_app():
-    app = Flask(__name__, static_folder='../frontend', static_url_path='')
+    app = app = Flask(__name__)
     app.config.from_object(Config)
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
     app.config['JWT_TOKEN_LOCATION'] = ['headers']
@@ -1305,12 +1305,12 @@ def create_app():
     # ══════════════════════════════════════════
     # FRONTEND FALLBACK
     # ══════════════════════════════════════════
-    @app.route('/')
-    @app.route('/<path:path>')
-    def serve_frontend(path=''):
-        if path and os.path.exists(os.path.join(app.static_folder, path)):
-            return send_from_directory(app.static_folder, path)
-        return send_from_directory(app.static_folder, 'index.html')
+    # @app.route('/')
+    # @app.route('/<path:path>')
+    # def serve_frontend(path=''):
+    #     if path and os.path.exists(os.path.join(app.static_folder, path)):
+    #         return send_from_directory(app.static_folder, path)
+    #     return send_from_directory(app.static_folder, 'index.html')
 
     @app.errorhandler(Exception)
     def handle_error(e):
